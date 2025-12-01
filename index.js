@@ -5,7 +5,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+// MODELO CORRETO PARA API ATUAL
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
 const client = new Client({
   intents: [
@@ -24,13 +26,16 @@ client.on("messageCreate", async (msg) => {
 
   console.log("Mensagem recebida:", msg.content);
 
-  const mentioned = msg.content.includes(`<@${client.user.id}>`) ||
-                    msg.content.includes(`<@!${client.user.id}>`);
+  // Detectar menção
+  const mentioned =
+    msg.content.includes(`<@${client.user.id}>`) ||
+    msg.content.includes(`<@!${client.user.id}>`);
 
   if (!mentioned) return;
 
   console.log("Bot foi mencionado!");
 
+  // Texto depois da menção
   const prompt = msg.content
     .replace(`<@${client.user.id}>`, "")
     .replace(`<@!${client.user.id}>`, "")
@@ -40,6 +45,7 @@ client.on("messageCreate", async (msg) => {
 
   try {
     const result = await model.generateContent(finalPrompt);
+
     msg.reply(result.response.text());
   } catch (error) {
     console.error("Erro na Gemini:", error);
