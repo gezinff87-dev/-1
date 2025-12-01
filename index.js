@@ -1,73 +1,68 @@
-import { Client, GatewayIntentBits } from "discord.js";
-import dotenv from "dotenv";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
+import dotenv from "dotenv";
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
+// ========= CONFIGURAÇÃO DISCORD =========
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.MessageContent
   ],
+  partials: [Partials.Channel]
 });
 
-// Função para dividir mensagens longas
-function dividirMensagem(texto, limite = 1900) {
-  const partes = [];
-  while (texto.length > 0) {
-    partes.push(texto.slice(0, limite));
-    texto = texto.slice(limite);
-  }
-  return partes;
-}
+// ========= CONFIGURAÇÃO GEMINI =========
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash"
+});
 
+// ========= STATUS DO BOT =========
 client.on("clientReady", () => {
   console.log(`🤖 Bot online como ${client.user.tag}`);
+
+  client.user.setPresence({
+    status: "online",
+    activities: [
+      {
+        name: "🤖 Surprise Applications...",
+        type: 4 // Custom Status
+      }
+    ]
+  });
 });
 
-client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
+// ========= RESPONDER MENSAGENS =========
+client.on("messageCreate", async (message) => {
+  // Ignora bots
+  if (message.author.bot) return;
 
-  const mentioned =
-    msg.content.includes(`<@${client.user.id}>`) ||
-    msg.content.includes(`<@!${client.user.id}>`);
+  // Verifica se o bot foi marcado
+  if (!message.mentions.has(client.user)) return;
 
-  if (!mentioned) return;
-
-  const prompt = msg.content
-    .replace(`<@${client.user.id}>`, "")
-    .replace(`<@!${client.user.id}>`, "")
-    .trim();
-
-  const finalPrompt = prompt || "Olá! Como posso ajudar?";
+  console.log("Mensagem recebida:", message.content);
+  console.log("Bot foi mencionado!");
 
   try {
-    await msg.channel.sendTyping();
+    // efeito de digitação
+    message.channel.sendTyping();
 
-    const result = await model.generateContent(finalPrompt);
-    const texto = result.response.text();
-    const partes = dividirMensagem(texto);
+    // Remove a menção do texto
+    const pergunta = message.content.replace(`<@${client.user.id}>`, "").trim();
 
-    let ultimaMensagem = msg; // começa respondendo o usuário
+    const resposta = await model.generateContent(pergunta);
+    const texto = resposta.response.text();
 
-    for (const parte of partes) {
-      await msg.channel.sendTyping();
+    // responde como REPLY
+    await message.reply(texto);
 
-      // 🔥 Responde sempre a mensagem anterior
-      const enviada = await ultimaMensagem.reply(parte);
-
-      // Atualiza para que a próxima resposta responda essa
-      ultimaMensagem = enviada;
-    }
-
-  } catch (error) {
-    console.error("Erro na Gemini:", error);
-    msg.reply("❌ Ocorreu um erro ao acessar a API do Gemini.");
+  } catch (erro) {
+    console.error("Erro na Gemini:", erro);
+    await message.reply("❌ Ocorreu um erro ao acessar a API do Gemini.");
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// ========= LOGIN =========
+client.login(process.env.TOKEN);
