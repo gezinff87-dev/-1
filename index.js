@@ -6,7 +6,7 @@ dotenv.config();
 
 // Inicializa a API Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
 // Inicializa o bot do Discord
 const client = new Client({
