@@ -32,16 +32,11 @@ client.on("clientReady", () => {
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
-  console.log("Mensagem recebida:", msg.content);
-
-  // Verifica se foi mencionado
   const mentioned =
     msg.content.includes(`<@${client.user.id}>`) ||
     msg.content.includes(`<@!${client.user.id}>`);
 
   if (!mentioned) return;
-
-  console.log("Bot foi mencionado!");
 
   const prompt = msg.content
     .replace(`<@${client.user.id}>`, "")
@@ -51,13 +46,22 @@ client.on("messageCreate", async (msg) => {
   const finalPrompt = prompt || "Olá! Como posso ajudar?";
 
   try {
+    await msg.channel.sendTyping();
+
     const result = await model.generateContent(finalPrompt);
     const texto = result.response.text();
-
     const partes = dividirMensagem(texto);
 
+    let ultimaMensagem = msg; // começa respondendo o usuário
+
     for (const parte of partes) {
-      await msg.reply(parte);
+      await msg.channel.sendTyping();
+
+      // 🔥 Responde sempre a mensagem anterior
+      const enviada = await ultimaMensagem.reply(parte);
+
+      // Atualiza para que a próxima resposta responda essa
+      ultimaMensagem = enviada;
     }
 
   } catch (error) {
