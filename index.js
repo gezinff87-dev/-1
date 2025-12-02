@@ -58,7 +58,7 @@ client.on("clientReady", () => {
   }
 
   atualizarStatus();
-  setInterval(atualizarStatus, 5000); // Atualiza a cada 15 segundos
+  setInterval(atualizarStatus, 3500); // Atualiza a cada 15 segundos
 });
 
 
