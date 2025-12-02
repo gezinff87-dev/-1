@@ -32,12 +32,12 @@ client.on("clientReady", () => {
 
     const statusList = [
       {
-        name: "``🤖`` Surprise Applications...",
+        name: "🤖 Surprise Applications...",
         type: 1, // STREAMING
         url: "https://twitch.tv/twitch"
       },
       {
-        name: "🚀 Automatizeso aqui!...",
+        name: "🚀 Automatizeso aqui!",
         type: 1, // WATCHING
         url: "https://twitch.tv/twitch"
       },
