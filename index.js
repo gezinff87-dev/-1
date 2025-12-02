@@ -32,17 +32,19 @@ client.on("clientReady", () => {
 
     const statusList = [
       {
-        name: "🤖 Surprise Applications",
+        name: "``🤖`` Surprise Applications...",
         type: 1, // STREAMING
         url: "https://twitch.tv/twitch"
       },
       {
         name: "🚀 Automatizeso aqui!...",
-        type: 3 // WATCHING
+        type: 3, // WATCHING
+        url: "https://twitch.tv/twitch"
       },
       {
         name: `📊 Em ${servidores} Servers...`,
-        type: 3 // WATCHING
+        type: 3, // WATCHING
+        url: "https://twitch.tv/twitch"
       }
     ];
 
@@ -56,7 +58,7 @@ client.on("clientReady", () => {
   }
 
   atualizarStatus();
-  setInterval(atualizarStatus, 15000); // Atualiza a cada 15 segundos
+  setInterval(atualizarStatus, 5000); // Atualiza a cada 15 segundos
 });
 
 
