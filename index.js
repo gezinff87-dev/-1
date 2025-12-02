@@ -38,12 +38,12 @@ client.on("clientReady", () => {
       },
       {
         name: "🚀 Automatizeso aqui!...",
-        type: 3, // WATCHING
+        type: 1, // WATCHING
         url: "https://twitch.tv/twitch"
       },
       {
         name: `📊 Em ${servidores} Servers...`,
-        type: 3, // WATCHING
+        type: 1, // WATCHING
         url: "https://twitch.tv/twitch"
       }
     ];
