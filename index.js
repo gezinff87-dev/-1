@@ -8,9 +8,7 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-// MODELO CORRETO — QUALQUER OUTRO MODELO = BOT NÃO RESPONDE
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // -------- CLIENT --------
 const client = new Client({
@@ -18,9 +16,9 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages
+    GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Channel]
+  partials: [Partials.Channel],
 });
 
 // -------- MEMÓRIA --------
@@ -45,9 +43,19 @@ client.on("clientReady", () => {
     const servidores = client.guilds.cache.size;
 
     const statusList = [
-      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" },
-      { name: "🚀 Automatizeso aqui!...", type: 3 },
-      { name: `📊 Em ${servidores} Servers...`, type: 3 }
+      {
+        name: "🤖 Surprise Applications",
+        type: 1, // STREAMING
+        url: "https://twitch.tv/twitch",
+      },
+      { name: "🚀 Automatizeso aqui!...", 
+       type: 1, 
+       url: "https://twitch.tv/twitch",
+      }, // WATCHING
+      { name: `📊 Em ${servidores} Servers...`, 
+       type: 1,
+       url: "https://twitch.tv/twitch",
+      },
     ];
 
     const status = statusList[Math.floor(Math.random() * statusList.length)];
@@ -77,7 +85,10 @@ client.on("messageCreate", async (message) => {
     const userId = message.author.id;
     const textoUsuario = isDM
       ? message.content
-      : message.content.replace(`<@${client.user.id}>`, "").replace(`<@!${client.user.id}>`, "").trim();
+      : message.content
+          .replace(`<@${client.user.id}>`, "")
+          .replace(`<@!${client.user.id}>`, "")
+          .trim();
 
     if (!textoUsuario) return;
 
@@ -88,7 +99,7 @@ client.on("messageCreate", async (message) => {
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
     const prompt = memoria[userId]
-      .map(m => `${m.role === "user" ? "Usuário" : " "}: ${m.text}`)
+      .map((m) => `${m.role === "user" ? "Usuário" : "Bot"}: ${m.text}`)
       .join("\n");
 
     const result = await model.generateContent(prompt);
@@ -105,12 +116,11 @@ client.on("messageCreate", async (message) => {
       await message.channel.sendTyping();
 
       if (isDM) {
-        ultima = await message.channel.send(parte);
+        ultima = await message.channel.send(parte); // sem "Bot:"
       } else {
-        ultima = await ultima.reply(parte);
+        ultima = await ultima.reply(parte); // reply no servidor
       }
     }
-
   } catch (e) {
     console.error("Erro:", e);
     try {
