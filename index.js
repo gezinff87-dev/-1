@@ -6,12 +6,13 @@ dotenv.config();
 // -------- CONFIG --------
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!DISCORD_TOKEN || !GEMINI_API_KEY) {
-  console.error("ERRO: defina DISCORD_TOKEN e GEMINI_API_KEY no .env");
-  process.exit(1);
-}
 
-// -------- CLIENT DISCORD --------
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// MODELO CORRETO — QUALQUER OUTRO MODELO = BOT NÃO RESPONDE
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+// -------- CLIENT --------
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,22 +20,15 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages
   ],
-  partials: [Partials.Channel],
+  partials: [Partials.Channel]
 });
 
-// -------- GEMINI --------
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// modelo recomendado (ajuste se precisar)
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-// -------- MEMÓRIA (em RAM) --------
-const memoria = {}; // { userId: [ { role: 'user'|'bot', text }, ... ] }
+// -------- MEMÓRIA --------
+const memoria = {};
 const MEMORIA_MAX = 10;
 
-// -------- AUX: dividir mensagens longas --------
 function dividirMensagem(texto, limite = 1900) {
   const partes = [];
-  if (!texto || typeof texto !== "string") return partes;
   let i = 0;
   while (i < texto.length) {
     partes.push(texto.slice(i, i + limite));
@@ -43,125 +37,86 @@ function dividirMensagem(texto, limite = 1900) {
   return partes;
 }
 
-// -------- STATUS ROTATIVO (ready event é 'ready' na v14) --------
-client.on("ready", () => {
+// -------- STATUS --------
+client.on("clientReady", () => {
   console.log(`🤖 Bot online como ${client.user.tag}`);
 
   const atualizarStatus = () => {
     const servidores = client.guilds.cache.size;
+
     const statusList = [
-      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" }, // STREAMING
-      { name: "🚀 Automatizeso aqui!...", type: 3 }, // WATCHING
-      { name: `📊 Em ${servidores} Servers...`, type: 3 } // WATCHING
+      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" },
+      { name: "🚀 Automatizeso aqui!...", type: 3 },
+      { name: `📊 Em ${servidores} Servers...`, type: 3 }
     ];
+
     const status = statusList[Math.floor(Math.random() * statusList.length)];
+
     client.user.setPresence({
       status: "online",
       activities: [status],
-    }).catch(err => console.warn("Erro setPresence:", err));
+    });
   };
 
   atualizarStatus();
-  setInterval(atualizarStatus, 15000); // 15s
+  setInterval(atualizarStatus, 15000);
 });
 
-// -------- HANDLER DE MENSAGENS --------
+// -------- MENSAGENS --------
 client.on("messageCreate", async (message) => {
   try {
-    if (message.author?.bot) return;
+    if (!message || message.author.bot) return;
 
-    // Detecta DM: message.guild === null para DMs
-    const isDM = message.guild === null;
+    const isDM = !message.guild;
+    const mentioned = message.mentions?.has(client.user);
 
-    // função que prepara/salva memória e obtém prompt
-    const saveAndBuildPrompt = (userId, userText) => {
-      if (!memoria[userId]) memoria[userId] = [];
-      memoria[userId].push({ role: "user", text: userText });
-      if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
-      return memoria[userId]
-        .map(m => (m.role === "user" ? `Usuário: ${m.text}` : `Bot: ${m.text}`))
-        .join("\n");
-    };
+    // DM → sempre responde
+    // Servidor → só responde quando marcado
+    if (!isDM && !mentioned) return;
 
-    // função que salva bot response
-    const pushBotToMemory = (userId, botText) => {
-      if (!memoria[userId]) memoria[userId] = [];
-      memoria[userId].push({ role: "bot", text: botText });
-      if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
-    };
-
-    // prepare userId and raw text
     const userId = message.author.id;
-    const rawText = (isDM ? message.content : message.content.replace(`<@${client.user.id}>`, "").replace(`<@!${client.user.id}>`, "")).trim();
+    const textoUsuario = isDM
+      ? message.content
+      : message.content.replace(`<@${client.user.id}>`, "").replace(`<@!${client.user.id}>`, "").trim();
 
-    if (!rawText) {
-      // opcional: ignora mensagens vazias ou só menção
-      return;
-    }
+    if (!textoUsuario) return;
 
-    // SERVER: só responde se mencionado
-    if (!isDM && !message.mentions.has(client.user)) return;
+    await message.channel.sendTyping();
 
-    // typing indicator
-    try { message.channel.sendTyping(); } catch (e) { /* non-fatal */ }
+    if (!memoria[userId]) memoria[userId] = [];
+    memoria[userId].push({ role: "user", text: textoUsuario });
+    if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
-    // monta prompt com memória
-    const prompt = saveAndBuildPrompt(userId, rawText);
+    const prompt = memoria[userId]
+      .map(m => `${m.role === "user" ? "Usuário" : "Bot"}: ${m.text}`)
+      .join("\n");
 
-    // chama Gemini
     const result = await model.generateContent(prompt);
+    const resposta = result.response.text();
 
-    // extrai texto de forma robusta (algumas libs retornam .response.text() ou .response.text)
-    let textoResposta = "";
-    if (result?.response) {
-      if (typeof result.response.text === "function") {
-        textoResposta = result.response.text();
-      } else if (typeof result.response.text === "string") {
-        textoResposta = result.response.text;
-      } else if (typeof result.response === "string") {
-        textoResposta = result.response;
-      } else {
-        textoResposta = JSON.stringify(result.response).slice(0, 8000);
-      }
-    } else {
-      textoResposta = String(result).slice(0, 8000);
-    }
+    memoria[userId].push({ role: "bot", text: resposta });
+    if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
-    if (!textoResposta) textoResposta = "Desculpe, não consegui gerar uma resposta.";
+    const partes = dividirMensagem(resposta);
 
-    // salvar na memória
-    pushBotToMemory(userId, textoResposta);
-
-    // dividir e enviar em replies encadeadas
-    const partes = dividirMensagem(textoResposta, 1900);
-    let ultima = message; // começar respondendo a mensagem original
+    let ultima = message;
 
     for (const parte of partes) {
-      // typing antes de cada parte (opcional)
-      try { message.channel.sendTyping(); } catch (e) { /* ignore */ }
+      await message.channel.sendTyping();
 
-      // enviar: em DMs podemos usar channel.send; em server vamos reply encadeado
-      let enviada;
       if (isDM) {
-        enviada = await message.channel.send(parte);
+        ultima = await message.channel.send(parte);
       } else {
-        enviada = await ultima.reply(parte);
+        ultima = await ultima.reply(parte);
       }
-      ultima = enviada;
     }
 
-  } catch (err) {
-    console.error("Erro geral no handler:", err);
+  } catch (e) {
+    console.error("Erro:", e);
     try {
-      if (message && !message.replied) {
-        await message.reply("❌ Ocorreu um erro ao processar sua mensagem.");
-      }
-    } catch (e) { /* não explode */ }
+      await message.channel.send("❌ Ocorreu um erro ao gerar a resposta.");
+    } catch (_) {}
   }
 });
 
-// -------- LOGIN --------
-client.login(DISCORD_TOKEN).catch(err => {
-  console.error("Erro ao logar no Discord:", err);
-  process.exit(1);
-});
+client.login(DISCORD_TOKEN);
