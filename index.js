@@ -44,11 +44,11 @@ client.on("clientReady", () => {
 
     const statusList = [
       {
-        name: "🤖 Surprise Applications",
+        name: "🤖 Surprise Applications..",
         type: 1, // STREAMING
         url: "https://twitch.tv/twitch",
       },
-      { name: "🚀 Automatizeso aqui!...", 
+      { name: "🚀 Automatize so aqui!...", 
        type: 1, 
        url: "https://twitch.tv/twitch",
       }, // WATCHING
@@ -67,7 +67,7 @@ client.on("clientReady", () => {
   };
 
   atualizarStatus();
-  setInterval(atualizarStatus, 15000);
+  setInterval(atualizarStatus, 3000);
 });
 
 // -------- MENSAGENS --------
