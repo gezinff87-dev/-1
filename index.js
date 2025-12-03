@@ -88,7 +88,7 @@ client.on("messageCreate", async (message) => {
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
     const prompt = memoria[userId]
-      .map(m => `${m.role === "user" ? "Usuário" : "Bot"}: ${m.text}`)
+      .map(m => `${m.role === "user" ? "Usuário" : ""}: ${m.text}`)
       .join("\n");
 
     const result = await model.generateContent(prompt);
