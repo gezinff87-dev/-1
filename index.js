@@ -25,11 +25,10 @@ const client = new Client({
 
 // ---------------- GEMINI ----------------
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// Modelo recomendado; troque se sua conta tiver acesso a outro.
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // ---------------- MEMÓRIA ----------------
-const memoria = {}; // { userId: [ { role: 'user'|'bot', text }, ... ] }
+const memoria = {}; 
 const MEMORIA_MAX = 12;
 
 // ---------------- AJUDAS ----------------
@@ -44,17 +43,14 @@ function dividirMensagem(texto, limite = 1900) {
   return partes;
 }
 
-// Persona system prompt (não afirma ser a pessoa real; usa LulA.I como personagem)
+// Persona system prompt
 const PERSONA_PROMPT = `
 Você é Lula — atual presidente do Brasil, mora em Brasília:
 - Use bordões como "companheiro", "minha gente", "veja bem", "ó só" e palavras coloquiais.
-- Fale em tom caloroso, por vezes enfático, com frases longas e explicações cheias de exemplos e historinhas.
+- Fale em tom caloroso, por vezes enfático, com frases longas e exemplos.
 - Seja brincalhão e político no humor, mas sempre respeitoso.
-- Sempre deixe claro se o usuário pedir confirmação de identidade: diga que você é "LulA.I, uma imitação/charada humorística" — NÃO AFIRME ser a pessoa real.
-- Não forneça conselhos médicos/jurídicos de alto risco; nestes casos, recomende um profissional.
-- Seja útil e responda a perguntas concretas com passos claros quando solicitado.
-
-Formato de entrada: o prompt final que você receberá incluirá este bloco de persona seguido do histórico da conversa e da pergunta mais recente. Produza respostas no mesmo português coloquial.
+- Sempre deixe claro: você é "LulA.I, uma imitação humorística".
+- Não forneça conselhos de risco, recomende profissionais.
 `;
 
 // ---------------- STATUS ROTATIVO ----------------
@@ -63,13 +59,20 @@ client.on("ready", () => {
 
   function atualizarStatus() {
     const servidores = client.guilds.cache.size;
+
     const statusList = [
-      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" }, // STREAMING
-      { name: "🚀 Automatizeso aqui!...", type: 3 }, // WATCHING
-      { name: `📊 Em ${servidores} Servers...`, type: 3 }, // WATCHING
+      { name: "🤖 Surprise Applications...", type: 1, url: "https://twitch.tv/twitch" },
+      { name: "🚀 Automatizeso aqui...", type: 1, url: "https://twitch.tv/twitch" },
+      { name: `📊 Em ${servidores} Servers...`, type: 1, url: "https://twitch.tv/twitch" },
     ];
+
     const status = statusList[Math.floor(Math.random() * statusList.length)];
-    client.user.setPresence({ status: "online", activities: [status] }).catch(() => {});
+
+    // 🔥 CORRIGIDO — sem .catch()
+    client.user.setPresence({
+      status: "online",
+      activities: [status]
+    });
   }
 
   atualizarStatus();
@@ -84,10 +87,9 @@ client.on("messageCreate", async (message) => {
     const isDM = !message.guild;
     const mentioned = message.mentions?.has(client.user);
 
-    // Server: responde apenas se mencionado
+    // Em servidores, só responde se mencionar
     if (!isDM && !mentioned) return;
 
-    // prepara texto limpo (removendo menções)
     const textoUsuario = isDM
       ? message.content.trim()
       : message.content
@@ -97,76 +99,57 @@ client.on("messageCreate", async (message) => {
 
     if (!textoUsuario) return;
 
-    // typing indicator
-    try { await message.channel.sendTyping(); } catch (e) {}
+    try { await message.channel.sendTyping(); } catch {}
 
     const userId = message.author.id;
 
-    // garante memória do usuário
     if (!memoria[userId]) memoria[userId] = [];
 
-    // salva pergunta do usuário
     memoria[userId].push({ role: "user", text: textoUsuario });
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
-    // monta prompt: persona + histórico (transformado em formato legível)
     const historico = memoria[userId]
       .map((m) => (m.role === "user" ? `Usuário: ${m.text}` : `LulA.I: ${m.text}`))
       .join("\n");
 
-    const fullPrompt = `${PERSONA_PROMPT}\n\nHistórico da conversa:\n${historico}\n\nRespond a partir do personagem LulA.I (responda em português coloquial). Responda à última pergunta do usuário de forma clara e no estilo do personagem.`;
+    const fullPrompt = `${PERSONA_PROMPT}\n\nHistórico:\n${historico}\n\nResponda como LulA.I.`;
 
-    // chama Gemini
     const result = await model.generateContent(fullPrompt);
 
-    // extrair texto de forma robusta
     let respostaText = "";
-    if (result?.response) {
-      if (typeof result.response.text === "function") {
-        respostaText = result.response.text();
-      } else if (typeof result.response.text === "string") {
-        respostaText = result.response.text;
-      } else if (typeof result.response === "string") {
-        respostaText = result.response;
-      } else {
-        respostaText = JSON.stringify(result.response);
-      }
+
+    if (result?.response?.text) {
+      respostaText = result.response.text();
     } else {
-      respostaText = JSON.stringify(result);
+      respostaText = "Ô companheiro, deu uma embaralhada aqui, tenta de novo.";
     }
 
-    if (!respostaText) respostaText = "Ô meu amigo, desculpe — não consegui pensar direito agora.";
-
-    // salvar resposta na memória (sem prefixo "Bot")
     memoria[userId].push({ role: "bot", text: respostaText });
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
-    // dividir e enviar respostas encadeadas
-    const partes = dividirMensagem(respostaText, 1900);
+    const partes = dividirMensagem(respostaText);
+
     let ultima = message;
 
     for (const parte of partes) {
-      try { await message.channel.sendTyping(); } catch (e) {}
+      try { await message.channel.sendTyping(); } catch {}
 
       if (isDM) {
-        ultima = await message.channel.send(parte); // envia limpo em DM
+        ultima = await message.channel.send(parte); 
       } else {
-        ultima = await ultima.reply(parte); // reply encadeado no servidor
+        ultima = await ultima.reply(parte);
       }
     }
   } catch (err) {
     console.error("Erro no handler:", err);
     try {
-      // tenta enviar mensagem de erro apropriada (DM ou canal)
-      if (message && message.channel) {
-        await message.channel.send("❌ Ocorreu um erro ao processar sua mensagem. Tente novamente em alguns segundos.");
-      }
-    } catch (e) {}
+      await message.channel.send("❌ Deu um erro aqui, tente novamente.");
+    } catch {}
   }
 });
 
 // ---------------- LOGIN ----------------
 client.login(DISCORD_TOKEN).catch((err) => {
-  console.error("Erro ao logar no Discord:", err);
+  console.error("Erro ao logar:", err);
   process.exit(1);
 });
