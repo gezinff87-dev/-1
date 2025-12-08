@@ -75,7 +75,6 @@ client.on("ready", () => {
       {
       name: "🤔 Pensando...",
       type: 4 // CUSTOM STATUS
-    }
   ]
     });
   }
