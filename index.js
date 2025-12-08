@@ -61,9 +61,9 @@ client.on("ready", () => {
     const servidores = client.guilds.cache.size;
 
     const statusList = [
-      { name: "🤖 Surprise Applications...", type: 1, url: "https://twitch.tv/twitch" },
-      { name: "🚀 Automatizeso aqui...", type: 1, url: "https://twitch.tv/twitch" },
-      { name: `📊 Em ${servidores} Servers...`, type: 1, url: "https://twitch.tv/twitch" },
+      { name: "🤖 Surprise Applications...", type: 1, },
+      { name: "🚀 Automatizeso aqui...", type: 1, },
+      { name: `📊 Em ${servidores} Servers...`, type: 1, },
     ];
 
     const status = statusList[Math.floor(Math.random() * statusList.length)];
@@ -72,6 +72,11 @@ client.on("ready", () => {
     client.user.setPresence({
       status: "online",
       activities: [status]
+      {
+      name: "🤔 Pensando...",
+      type: 4 // CUSTOM STATUS
+    }
+  ]
     });
   }
 
