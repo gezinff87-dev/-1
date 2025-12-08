@@ -77,7 +77,7 @@ client.on("ready", () => {
   }
 
   atualizarStatus();
-  setInterval(atualizarStatus, 15000);
+  setInterval(atualizarStatus, 2000);
 });
 
 // ---------------- HANDLER DE MENSAGENS ----------------
