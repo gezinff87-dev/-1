@@ -62,8 +62,8 @@ client.on("ready", () => {
     const servidores = client.guilds.cache.size;
 
     const statusList = [
-      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" },
-      { name: "🚀 Automatizeso aqui!...", type: 1, url: "https://twitch.tv/twitch"},
+      { name: "🤖 Surprise Applications...", type: 1, url: "https://twitch.tv/twitch" },
+      { name: "🚀 Automatizeso aqui...", type: 1, url: "https://twitch.tv/twitch"},
       { name: `📊 Em ${servidores} Servers...`, type: 1, url: "https://twitch.tv/twitch" },
     ];
 
