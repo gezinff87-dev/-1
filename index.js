@@ -61,9 +61,9 @@ client.on("ready", () => {
     const servidores = client.guilds.cache.size;
 
     const statusList = [
-      { name: "🤖 Surprise Applications...", type: 1, },
-      { name: "🚀 Automatizeso aqui...", type: 1, },
-      { name: `📊 Em ${servidores} Servers...`, type: 1, },
+      { name: "🤖 Surprise Applications...", type: 1 },
+      { name: "🚀 Automatizeso aqui...", type: 1 },
+      { name: `📊 Em ${servidores} Servers...`, type: 1 },
     ];
 
     const status = statusList[Math.floor(Math.random() * statusList.length)];
