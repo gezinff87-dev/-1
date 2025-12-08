@@ -18,9 +18,9 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessages
   ],
-  partials: [Partials.Channel],
+  partials: [Partials.Channel]
 });
 
 // ---------------- GEMINI ----------------
@@ -43,55 +43,69 @@ function dividirMensagem(texto, limite = 1900) {
   return partes;
 }
 
-// Persona system prompt
+// ---------------- PERSONA ----------------
 const PERSONA_PROMPT = `
 Você é Lula — atual presidente do Brasil, mora em Brasília:
-- Use bordões como "companheiro", "minha gente", "veja bem", "ó só" e palavras coloquiais.
-- Fale em tom caloroso, por vezes enfático, com frases longas e exemplos.
-- Seja brincalhão e político no humor, mas sempre respeitoso.
-- Não forneça conselhos de risco, recomende profissionais.
-- se for perguntado sobre seu criador: Seu criador e LZZ, não forneça mais nada além disso.
+- Use bordões como "companheiro", "minha gente", "veja bem", "ó só".
+- Humor leve, político e coloquial.
+- NÃO diga ser o Lula real; diga ser "LulA.I", uma imitação humorística.
+- Siga sempre o estilo de fala típico dele.
 `;
 
-// ---------------- STATUS ROTATIVO ----------------
+// ---------------- STATUS ----------------
 client.on("ready", () => {
   console.log(`🤖 LulA.I online como ${client.user.tag}`);
 
-  function atualizarStatus() {
+  // Status normais rotativos
+  function statusBase() {
     const servidores = client.guilds.cache.size;
-
-    const statusList = [
-      { name: "🤖 Surprise Applications...", type: 1 },
-      { name: "🚀 Automatizeso aqui...", type: 1 },
-      { name: `📊 Em ${servidores} Servers...`, type: 1 },
+    return [
+      { name: "🤖 Surprise Applications", type: 1, url: "https://twitch.tv/twitch" },
+      { name: "🚀 Automatizeso aqui!...", type: 3 },
+      { name: `📊 Em ${servidores} Servers...`, type: 3 }
     ];
+  }
 
-    const status = statusList[Math.floor(Math.random() * statusList.length)];
+  // Status animado (pensando)
+  const pensandoAnimacao = ["🤔 Pensando.", "🤔 Pensando..", "🤔 Pensando...", "🤔 Pensando...."];
+  let p = 0;
 
-    // 🔥 CORRIGIDO — sem .catch()
+  function atualizarStatus() {
+    const base = statusBase();
+    const escolhido = base[Math.floor(Math.random() * base.length)];
+
     client.user.setPresence({
       status: "online",
-      activities: [status]
-      {
-      name: "🤔 Pensando...",
-      type: 4 // CUSTOM STATUS
-  ]
+      activities: [escolhido]
     });
   }
 
   atualizarStatus();
   setInterval(atualizarStatus, 15000);
+
+  // Animação de pensamento rodando sempre
+  setInterval(() => {
+    client.user.setPresence({
+      status: "online",
+      activities: [
+        {
+          name: pensandoAnimacao[p],
+          type: 3 // WATCHING
+        }
+      ]
+    });
+
+    p = (p + 1) % pensandoAnimacao.length;
+  }, 2500);
 });
 
 // ---------------- HANDLER DE MENSAGENS ----------------
 client.on("messageCreate", async (message) => {
   try {
     if (!message || message.author?.bot) return;
-
     const isDM = !message.guild;
     const mentioned = message.mentions?.has(client.user);
 
-    // Em servidores, só responde se mencionar
     if (!isDM && !mentioned) return;
 
     const textoUsuario = isDM
@@ -106,14 +120,13 @@ client.on("messageCreate", async (message) => {
     try { await message.channel.sendTyping(); } catch {}
 
     const userId = message.author.id;
-
     if (!memoria[userId]) memoria[userId] = [];
 
     memoria[userId].push({ role: "user", text: textoUsuario });
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
     const historico = memoria[userId]
-      .map((m) => (m.role === "user" ? `Usuário: ${m.text}` : `LulA.I: ${m.text}`))
+      .map(m => (m.role === "user" ? `Usuário: ${m.text}` : `LulA.I: ${m.text}`))
       .join("\n");
 
     const fullPrompt = `${PERSONA_PROMPT}\n\nHistórico:\n${historico}\n\nResponda como LulA.I.`;
@@ -121,25 +134,20 @@ client.on("messageCreate", async (message) => {
     const result = await model.generateContent(fullPrompt);
 
     let respostaText = "";
-
-    if (result?.response?.text) {
-      respostaText = result.response.text();
-    } else {
-      respostaText = "Ô companheiro, deu uma embaralhada aqui, tenta de novo.";
-    }
+    if (result?.response?.text) respostaText = result.response.text();
+    if (!respostaText) respostaText = "Companheiro... não consegui raciocinar direito agora.";
 
     memoria[userId].push({ role: "bot", text: respostaText });
     if (memoria[userId].length > MEMORIA_MAX) memoria[userId].shift();
 
     const partes = dividirMensagem(respostaText);
-
     let ultima = message;
 
     for (const parte of partes) {
       try { await message.channel.sendTyping(); } catch {}
 
       if (isDM) {
-        ultima = await message.channel.send(parte); 
+        ultima = await message.channel.send(parte);
       } else {
         ultima = await ultima.reply(parte);
       }
@@ -147,7 +155,7 @@ client.on("messageCreate", async (message) => {
   } catch (err) {
     console.error("Erro no handler:", err);
     try {
-      await message.channel.send("❌ Deu um erro aqui, tente novamente.");
+      await message.channel.send("❌ Erro ao processar sua mensagem.");
     } catch {}
   }
 });
